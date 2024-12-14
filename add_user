@@ -1,0 +1,55 @@
+### This program allows users to associate their name with an RFID code
+
+### Header
+import csv
+import datetime
+from pathlib import Path
+
+### Request name
+
+print('Please enter your first name:')
+name_first = input()
+
+print('Please enter your last name:')
+name_last = input()
+
+no_commas = False
+while no_commas == False:
+    print('How would you like to be addressed by this system?')
+    nickname = input()
+    if nickname.count(',') > 0:
+        print('Sorry, no commas.  Try again.')
+    else:
+        no_commas = True
+
+print('Please swipe your new RFID tag across the door RFID reader.')
+
+fp = open(Path.cwd() / 'hidraw0', 'rb')
+ss = ""
+done = False
+program_done = False
+fp.close()
+
+while not program_done:
+    while not done:  ## Get the character from the HID
+        ss = input()
+        break
+
+    print(ss)
+
+    ### Open the whitelist to append
+    door_whitelist = open(Path.cwd() / 'keyed-members', 'a')
+    '''if len(door_whitelist) > 0: # If the last line isn't blank
+        door_whitelist.write('\n') # Add a blank line to the end'''
+    # In the blank line, add the new row
+    door_whitelist.write(ss + ',' + name_last + ',' + name_first + ',' + nickname + '\n')
+    # time.strftime('%Y-%m-%d %H:%M:%S') + ',' + ss + ',' + names_list[pos] + ',Approved \n')
+    door_whitelist.close()
+
+    print(name_first + ' ' + name_last + '(' + nickname + ') added to user list!')
+    # break()
+
+    program_done = True
+
+
+
