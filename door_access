@@ -1,0 +1,85 @@
+import csv
+import time
+from pynput import keyboard
+from pathlib import Path
+
+# File paths
+WHITELIST_PATH = Path.cwd()/'keyed-members'
+LOG_PATH = Path.cwd()/'log-door.txt'
+
+# Initialize variables
+rfid_number = ""
+is_done = False
+
+# Load whitelist
+def load_whitelist(path):
+    """Load whitelist data from a CSV file."""
+    with open(path, 'r') as whitelist_file:
+        csv_reader = csv.reader(whitelist_file)
+        ID_list = []
+        names_list = []
+        for row in csv_reader:
+            ID_list.append(row[0])  # Hex value
+            names_list.append(f"{row[2]} {row[1]}")  # First + Last Name
+        return ID_list, names_list
+
+# Log events
+def log_event(rfid, status, name="Unknown"):
+    """Log access events to a file."""
+    with open(LOG_PATH, 'a') as log_file:
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        log_file.write(f"{timestamp}, {rfid}, {name}, {status}\n")
+
+# Normalize RFID input
+def normalize_rfid(input_str):
+    """Normalize RFID input to match the expected 3-byte hex format."""
+    # Remove non-hexadecimal characters (if any)
+    cleaned = ''.join(c for c in input_str if c in "0123456789ABCDEFabcdef")
+    return cleaned
+
+# Process RFID input
+def process_rfid(ID_list, names_list):
+    """Check RFID value against the whitelist and log the result."""
+    global rfid_number, is_done
+    if rfid_number:
+        normalized_rfid = normalize_rfid(rfid_number)  # Normalize the input
+        print(f"Scanned RFID (normalized): {normalized_rfid}")
+        if normalized_rfid in ID_list:
+            idx = ID_list.index(normalized_rfid)
+            name = names_list[idx]
+            print(f"Access Granted: {name}")
+            log_event(normalized_rfid, "Access Granted", name)
+        else:
+            print("Access Denied: Unrecognized RFID")
+            log_event(normalized_rfid, "Access Denied")
+        # Reset RFID number and status
+        rfid_number = ""
+        is_done = False
+
+# Keyboard listener callback
+def on_press(key):
+    """Capture keyboard input from the RFID reader."""
+    global rfid_number, is_done
+    try:
+        if key.char and not is_done:
+            rfid_number += key.char  # Append character to the RFID number
+    except AttributeError:
+        # Handle special keys like Enter
+        if key == keyboard.Key.enter and rfid_number:
+            is_done = True
+            process_rfid(ID_list, names_list)
+
+# Main function
+def main():
+    """Main function to load whitelist and start listening for RFID input."""
+    global ID_list, names_list
+    ID_list, names_list = load_whitelist(WHITELIST_PATH)
+    print("Whitelist loaded. Waiting for RFID scans...")
+    print("Scan an RFID card and press Enter to process.")
+
+    # Start keyboard listener
+    with keyboard.Listener(on_press=on_press) as listener:
+        listener.join()
+
+if __name__ == "__main__":
+    main()
